@@ -52,7 +52,15 @@ defmodule GRPC.Adapter.Cowboy.Handler do
           )
         end
 
-      {:cowboy_loop, req, %{pid: pid, handling_timer: timer_ref, pending_reader: nil}}
+      state = %{
+        pid: pid,
+        server: server,
+        path: path,
+        handling_timer: timer_ref,
+        pending_reader: nil
+      }
+
+      {:cowboy_loop, req, state}
     else
       {:error, error} ->
         trailers = HTTP2.server_trailers(error.status, error.message)
@@ -284,6 +292,7 @@ defmodule GRPC.Adapter.Cowboy.Handler do
     error = %RPCError{status: GRPC.Status.deadline_exceeded(), message: "Deadline expired"}
     trailers = HTTP2.server_trailers(error.status, error.message)
     exit_handler(pid, :timeout)
+    :proc_lib.spawn(fn -> exit({:timeout, {state.server, state.path}}) end)
     req = send_error_trailers(req, trailers)
     {:stop, req, state}
   end

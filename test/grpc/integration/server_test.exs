@@ -149,11 +149,15 @@ defmodule GRPC.Integration.ServerTest do
   end
 
   test "returns appropriate error for stream requests" do
+    attach_error_handler()
+
     run_server([FeatureErrorServer], fn port ->
       {:ok, channel} = GRPC.Stub.connect("localhost:#{port}")
       rect = Routeguide.Rectangle.new()
       error = %GRPC.RPCError{message: "Please authenticate", status: 16}
       assert {:error, ^error} = channel |> Routeguide.RouteGuide.Stub.list_features(rect)
+
+      assert_receive {:error_report, _}
     end)
   end
 
@@ -178,7 +182,7 @@ defmodule GRPC.Integration.ServerTest do
       assert {:error, ^error} =
                channel |> Routeguide.RouteGuide.Stub.list_features(rect, timeout: 500)
 
-      assert_receive {:error_report, _}, 10000
+      assert_receive {:error_report, _}
     end)
   end
 
