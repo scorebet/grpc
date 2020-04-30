@@ -36,7 +36,7 @@ defmodule GRPC.Adapter.Cowboy.Handler do
         compressor: compressor
       }
 
-      pid = :proc_lib.spawn_link(__MODULE__, :call_rpc, [server, path, stream])
+      pid = spawn_link(__MODULE__, :call_rpc, [server, path, stream])
       Process.flag(:trap_exit, true)
 
       req = :cowboy_req.set_resp_headers(HTTP2.server_headers(stream), req)
@@ -314,29 +314,29 @@ defmodule GRPC.Adapter.Cowboy.Handler do
   end
 
   # expected error raised from user to return error immediately
-  def info({:EXIT, pid, {%RPCError{} = error, _stacktrace}}, req, state = %{pid: pid}) do
+  def info({:EXIT, pid, {%RPCError{} = error, _stacktrace}}, req, _state = %{pid: pid}) do
     trailers = HTTP2.server_trailers(error.status, error.message)
     exit_handler(pid, :rpc_error)
-    req = send_error_trailers(req, trailers)
-    {:stop, req, state}
+    _req = send_error_trailers(req, trailers)
+    raise(error)
   end
 
   # unknown error raised from rpc
-  def info({:EXIT, pid, {:handle_error, _kind}}, req, state = %{pid: pid}) do
+  def info({:EXIT, pid, {:handle_error, e}}, req, _state = %{pid: pid}) do
     error = %RPCError{status: GRPC.Status.unknown(), message: "Internal Server Error"}
     trailers = HTTP2.server_trailers(error.status, error.message)
     exit_handler(pid, :error)
-    req = send_error_trailers(req, trailers)
-    {:stop, req, state}
+    _req = send_error_trailers(req, trailers)
+    :erlang.raise(e.kind, e.reason, e.stack)
   end
 
-  def info({:EXIT, pid, {reason, stacktrace}}, req, state = %{pid: pid}) do
+  def info({:EXIT, pid, {reason, stacktrace}}, req, _state = %{pid: pid}) do
     Logger.error(Exception.format(:error, reason, stacktrace))
     error = %RPCError{status: GRPC.Status.unknown(), message: "Internal Server Error"}
     trailers = HTTP2.server_trailers(error.status, error.message)
     exit_handler(pid, reason)
-    req = send_error_trailers(req, trailers)
-    {:stop, req, state}
+    _req = send_error_trailers(req, trailers)
+    :erlang.raise(:error, reason, stacktrace)
   end
 
   def terminate(reason, _req, %{pid: pid}) do
@@ -359,18 +359,19 @@ defmodule GRPC.Adapter.Cowboy.Handler do
             :ok
         end
       catch
-        kind, e ->
-          Logger.error(Exception.format(kind, e, System.stacktrace()))
-
-          exit({:handle_error, kind})
+        kind, reason ->
+          stack = System.stacktrace()
+          #Logger.error(Exception.format(kind, reason, stack))
+          reason = Exception.normalize(kind, reason, stack)
+          {:error, %{kind: kind, reason: reason, stack: stack}}
       end
 
     case result do
       {:error, %GRPC.RPCError{} = e} ->
         exit({e, ""})
 
-      {:error, %{kind: kind}} ->
-        exit({:handle_error, kind})
+      {:error, %{kind: _, reason: _, stack: _} = e} ->
+        exit({:handle_error, e})
 
       other ->
         other
