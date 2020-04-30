@@ -36,7 +36,7 @@ defmodule GRPC.Adapter.Cowboy.Handler do
         compressor: compressor
       }
 
-      pid = spawn_link(__MODULE__, :call_rpc, [server, path, stream])
+      pid = :proc_lib.spawn_link(__MODULE__, :call_rpc, [server, path, stream])
       Process.flag(:trap_exit, true)
 
       req = :cowboy_req.set_resp_headers(HTTP2.server_headers(stream), req)
