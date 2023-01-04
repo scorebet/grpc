@@ -198,14 +198,7 @@ defmodule GRPC.Stub do
         120_000
       end
 
-    uniform_fn =
-      if function_exported?(:rand, :uniform_real, 0) do
-        :uniform_real
-      else
-        :uniform
-      end
-
-    jitter = (apply(:rand, uniform_fn, []) - 0.5) / 2.5
+    jitter = (:rand.uniform_real() - 0.5) / 2.5
 
     round(timeout + jitter * timeout)
   end
@@ -225,25 +218,24 @@ defmodule GRPC.Stub do
     adapter.disconnect(channel)
   end
 
-  @doc """
-  The actual function invoked when invoking a rpc function.
-
-  ## Returns
-
-    * Unary calls. `{:ok, reply} | {:ok, headers_map} | {:error, error}`
-    * Client streaming. A `GRPC.Client.Stream`
-    * Server streaming. `{:ok, Enumerable.t} | {:ok, Enumerable.t, trailers_map} | {:error, error}`
-
-  ## Options
-
-    * `:timeout` - request timeout. Default is 10s for unary calls and `:infinity` for
-      client or server streaming calls
-    * `:deadline` - when the request is timeout, will override timeout
-    * `:metadata` - a map, your custom metadata
-    * `:return_headers` - default is false. When it's true, a three elem tuple will be returned
-      with the last elem being a map of headers `%{headers: headers, trailers: trailers}`(unary) or
-      `%{headers: headers}`(server streaming)
-  """
+  @doc false
+  #  The actual function invoked when invoking a rpc function.
+  #
+  #  Returns
+  #
+  #    * Unary calls. `{:ok, reply} | {:ok, headers_map} | {:error, error}`
+  #    * Client streaming. A `GRPC.Client.Stream`
+  #    * Server streaming. `{:ok, Enumerable.t} | {:ok, Enumerable.t, trailers_map} | {:error, error}`
+  #
+  #  Options
+  #
+  #    * `:timeout` - request timeout. Default is 10s for unary calls and `:infinity` for
+  #      client or server streaming calls
+  #    * `:deadline` - when the request is timeout, will override timeout
+  #    * `:metadata` - a map, your custom metadata
+  #    * `:return_headers` - default is false. When it's true, a three elem tuple will be returned
+  #      with the last elem being a map of headers `%{headers: headers, trailers: trailers}`(unary) or
+  #      `%{headers: headers}`(server streaming)
   @spec call(atom(), tuple(), GRPC.Client.Stream.t(), struct() | nil, keyword()) :: rpc_return
   def call(_service_mod, rpc, %{channel: channel} = stream, request, opts) do
     {_, {req_mod, req_stream}, {res_mod, response_stream}} = rpc
@@ -380,14 +372,43 @@ defmodule GRPC.Stub do
       {:ok, reply} = GRPC.Stub.recv(stream)
 
       # Reply is streaming
-      {:ok, enum} = GRPC.Stub.recv(stream)
-      replies = Enum.map(enum, fn({:ok, reply}) -> reply end)
+      {:ok, ex_stream} = GRPC.Stub.recv(stream)
+      replies = Enum.map(ex_stream, fn({:ok, reply}) -> reply end)
 
   ## Options
 
     * `:timeout` - request timeout
     * `:deadline` - when the request is timeout, will override timeout
     * `:return_headers` - when true, headers will be returned.
+
+  ## Stream behavior
+  We build the Stream struct using `Stream.unfold/2`.
+
+  The unfold function is built in such a way that  - for both adapters - the accumulator is a map used to find the
+  `connection_stream`process and the `next_fun` argument is a function that reads directly from the `connection_stream`
+  that is producing data.
+  Every time we execute `next_fun` we read a chunk of data. This means that `next_fun` will have the side effect of updating the state of the `connection_stream` process, removing the chunk of data that's being read from the underlying `GenServer`'s state.
+  ## Examples
+
+      iex> ex_stream |> Stream.take(1) |> Enum.to_list()
+      [1]
+      iex> ex_stream |> Enum.to_list()
+      [2, 3]
+      iex> ex_stream |> Enum.to_list()
+      []
+
+  Unlikely the usual stream behavior you can see bellow.
+
+  ```
+  iex(1)> s = Stream.cycle([1, 2, 3, 4])
+  #Function<63.6935098/2 in Stream.unfold/2>
+  iex(2)> s |> Stream.take(1) |> Enum.to_list()
+  [1]
+  iex(3)> s |> Stream.take(1) |> Enum.to_list()
+  [1]
+  iex(4)> s |> Stream.take(3) |> Enum.to_list()
+  [1, 2, 3]
+  ```
   """
   @spec recv(GRPC.Client.Stream.t(), keyword()) ::
           {:ok, struct()}

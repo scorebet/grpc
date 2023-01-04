@@ -3,8 +3,10 @@ defmodule GRPC.Client.Adapters.Mint do
   A client adapter using mint
   """
 
-  alias GRPC.{Channel, Credential}
-  alias GRPC.Client.Adapters.Mint.{ConnectionProcess, StreamResponseProcess}
+  alias GRPC.Channel
+  alias GRPC.Client.Adapters.Mint.ConnectionProcess
+  alias GRPC.Client.Adapters.Mint.StreamResponseProcess
+  alias GRPC.Credential
 
   @behaviour GRPC.Client.Adapter
 
@@ -53,21 +55,10 @@ defmodule GRPC.Client.Adapters.Mint do
 
   @impl true
   def receive_data(stream, opts) do
-    cond do
-      success_bidi_stream?(stream) ->
-        do_receive_data(stream, :bidirectional_stream, opts)
-
-      success_server_stream?(stream) ->
-        do_receive_data(stream, :unary_request_stream_response, opts)
-
-      success_client_stream?(stream) ->
-        do_receive_data(stream, :stream_request_unary_response, opts)
-
-      success_unary_request?(stream) ->
-        do_receive_data(stream, :unary_request_response, opts)
-
-      true ->
-        handle_errors_receive_data(stream, opts)
+    if success_response?(stream) do
+      do_receive_data(stream, stream.grpc_type, opts)
+    else
+      handle_errors_receive_data(stream, opts)
     end
   end
 
@@ -116,7 +107,7 @@ defmodule GRPC.Client.Adapters.Mint do
   end
 
   defp connect_opts(%Channel{scheme: "https"} = channel, opts) do
-    %Credential{ssl: ssl} = Map.get(channel, :cred, %Credential{})
+    %Credential{ssl: ssl} = Map.get(channel, :cred) || %Credential{}
 
     transport_opts =
       opts
@@ -134,10 +125,19 @@ defmodule GRPC.Client.Adapters.Mint do
   defp mint_scheme(%Channel{scheme: "https"} = _channel), do: :https
   defp mint_scheme(_channel), do: :http
 
-  defp do_receive_data(%{payload: %{stream_response_pid: pid}}, request_type, _opts)
-       when request_type in [:bidirectional_stream, :unary_request_stream_response] do
-    stream = StreamResponseProcess.build_stream(pid)
-    {:ok, stream}
+  defp do_receive_data(%{payload: %{stream_response_pid: pid}}, request_type, opts)
+       when request_type in [:bidirectional_stream, :server_stream] do
+    produce_trailers? = opts[:return_headers] == true
+    stream = StreamResponseProcess.build_stream(pid, produce_trailers?)
+    headers_or_error = Enum.at(stream, 0)
+    # if this check fails then an error tuple will be returned
+    with {:headers, headers} <- headers_or_error do
+      if opts[:return_headers] do
+        {:ok, stream, %{headers: headers}}
+      else
+        {:ok, stream}
+      end
+    end
   end
 
   defp do_receive_data(
@@ -145,10 +145,10 @@ defmodule GRPC.Client.Adapters.Mint do
          request_type,
          opts
        )
-       when request_type in [:stream_request_unary_response, :unary_request_response] do
-    with stream <- StreamResponseProcess.build_stream(pid),
-         responses <- Enum.to_list(stream),
-         :ok <- check_for_error(responses) do
+       when request_type in [:client_stream, :unary] do
+    responses = pid |> StreamResponseProcess.build_stream() |> Enum.to_list()
+
+    with :ok <- check_for_error(responses) do
       data = Keyword.fetch!(responses, :ok)
 
       if opts[:return_headers] do
@@ -163,37 +163,12 @@ defmodule GRPC.Client.Adapters.Mint do
     {:error, "an error occurred while when receiving data: error=#{inspect(response)}"}
   end
 
-  defp success_bidi_stream?(%GRPC.Client.Stream{
-         grpc_type: :bidi_stream,
+  defp success_response?(%GRPC.Client.Stream{
          payload: %{response: {:ok, _resp}}
        }),
        do: true
 
-  defp success_bidi_stream?(_stream), do: false
-
-  defp success_server_stream?(%GRPC.Client.Stream{
-         grpc_type: :server_stream,
-         payload: %{response: {:ok, _resp}}
-       }),
-       do: true
-
-  defp success_server_stream?(_stream), do: false
-
-  defp success_client_stream?(%GRPC.Client.Stream{
-         grpc_type: :client_stream,
-         payload: %{response: {:ok, _resp}}
-       }),
-       do: true
-
-  defp success_client_stream?(_stream), do: false
-
-  defp success_unary_request?(%GRPC.Client.Stream{
-         grpc_type: :unary,
-         payload: %{response: {:ok, _resp}}
-       }),
-       do: true
-
-  defp success_unary_request?(_stream), do: false
+  defp success_response?(_stream), do: false
 
   defp do_request(
          %{channel: %{adapter_payload: %{conn_pid: pid}}, path: path} = stream,
@@ -203,7 +178,7 @@ defmodule GRPC.Client.Adapters.Mint do
     headers = GRPC.Transport.HTTP2.client_headers_without_reserved(stream, opts)
 
     {:ok, stream_response_pid} =
-      StreamResponseProcess.start_link(stream, opts[:return_headers] || false)
+      StreamResponseProcess.start_link(stream, return_headers_for_request?(stream, opts))
 
     response =
       ConnectionProcess.request(pid, "POST", path, headers, body,
@@ -223,5 +198,15 @@ defmodule GRPC.Client.Adapters.Mint do
     error = Keyword.get(responses, :error)
 
     if error, do: {:error, error}, else: :ok
+  end
+
+  defp return_headers_for_request?(%GRPC.Client.Stream{grpc_type: type}, _opts)
+       when type in [:bidirectional_stream, :server_stream] do
+    true
+  end
+
+  defp return_headers_for_request?(_stream, opts) do
+    # Explicitly check for true to ensure the boolean type here
+    opts[:return_headers] == true or false
   end
 end
