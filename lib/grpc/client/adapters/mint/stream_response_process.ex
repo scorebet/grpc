@@ -54,8 +54,7 @@ defmodule GRPC.Client.Adapters.Mint.StreamResponseProcess do
   """
   @spec done(pid()) :: :ok
   def done(pid) do
-    :ok = GenServer.call(pid, {:consume_response, :done})
-    :ok
+    GenServer.cast(pid, {:consume_response, :done})
   end
 
   @doc """
@@ -63,8 +62,7 @@ defmodule GRPC.Client.Adapters.Mint.StreamResponseProcess do
   """
   @spec consume(pid(), type :: accepted_types, data :: data_types) :: :ok
   def consume(pid, type, data) when type in @accepted_types do
-    :ok = GenServer.call(pid, {:consume_response, {type, data}})
-    :ok
+    GenServer.cast(pid, {:consume_response, {type, data}})
   end
 
   # Callbacks
@@ -89,7 +87,8 @@ defmodule GRPC.Client.Adapters.Mint.StreamResponseProcess do
     {:noreply, put_in(state[:from], from), {:continue, :produce_response}}
   end
 
-  def handle_call({:consume_response, {:data, data}}, _from, state) do
+  @impl true
+  def handle_cast({:consume_response, {:data, data}}, state) do
     %{
       buffer: buffer,
       grpc_stream: %{response_mod: res_mod, codec: codec},
@@ -102,28 +101,26 @@ defmodule GRPC.Client.Adapters.Mint.StreamResponseProcess do
         response = codec.decode(message, res_mod)
         new_responses = [{:ok, response} | responses]
         new_state = %{state | buffer: rest, responses: new_responses}
-        {:reply, :ok, new_state, {:continue, :produce_response}}
+        {:noreply, new_state, {:continue, :produce_response}}
 
       _ ->
         new_state = %{state | buffer: buffer <> data}
-        {:reply, :ok, new_state, {:continue, :produce_response}}
+        {:noreply, new_state, {:continue, :produce_response}}
     end
   end
 
-  def handle_call(
+  def handle_cast(
         {:consume_response, {type, headers}},
-        _from,
         %{send_headers_or_trailers: true, responses: responses} = state
       )
       when type in @header_types do
     state = update_compressor({type, headers}, state)
     new_responses = [get_headers_response(headers, type) | responses]
-    {:reply, :ok, %{state | responses: new_responses}, {:continue, :produce_response}}
+    {:noreply, %{state | responses: new_responses}, {:continue, :produce_response}}
   end
 
-  def handle_call(
+  def handle_cast(
         {:consume_response, {type, headers}},
-        _from,
         %{send_headers_or_trailers: false, responses: responses} = state
       )
       when type in @header_types do
@@ -131,23 +128,22 @@ defmodule GRPC.Client.Adapters.Mint.StreamResponseProcess do
 
     case get_headers_response(headers, type) do
       {:error, _rpc_error} = error ->
-        {:reply, :ok, %{state | responses: [error | responses]}, {:continue, :produce_response}}
+        {:noreply, %{state | responses: [error | responses]}, {:continue, :produce_response}}
 
       _any ->
-        {:reply, :ok, state, {:continue, :produce_response}}
+        {:noreply, state, {:continue, :produce_response}}
     end
   end
 
-  def handle_call(
+  def handle_cast(
         {:consume_response, {:error, _error} = error},
-        _from,
         %{responses: responses} = state
       ) do
-    {:reply, :ok, %{state | responses: [error | responses]}, {:continue, :produce_response}}
+    {:noreply, %{state | responses: [error | responses]}, {:continue, :produce_response}}
   end
 
-  def handle_call({:consume_response, :done}, _from, state) do
-    {:reply, :ok, %{state | done: true}, {:continue, :produce_response}}
+  def handle_cast({:consume_response, :done}, state) do
+    {:noreply, %{state | done: true}, {:continue, :produce_response}}
   end
 
   @impl true

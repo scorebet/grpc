@@ -30,10 +30,9 @@ defmodule GRPC.Client.Adapters.Mint.StreamResponseProcessTest do
       state: state,
       data: {part1, _, _}
     } do
-      response =
-        StreamResponseProcess.handle_call({:consume_response, {:data, part1}}, self(), state)
+      response = StreamResponseProcess.handle_cast({:consume_response, {:data, part1}}, state)
 
-      assert {:reply, :ok, new_state, {:continue, :produce_response}} = response
+      assert {:noreply, new_state, {:continue, :produce_response}} = response
       assert new_state.buffer == part1
     end
 
@@ -44,13 +43,12 @@ defmodule GRPC.Client.Adapters.Mint.StreamResponseProcessTest do
       expected_response_message = build(:hello_reply_rpc)
 
       response =
-        StreamResponseProcess.handle_call(
+        StreamResponseProcess.handle_cast(
           {:consume_response, {:data, full_message}},
-          self(),
           state
         )
 
-      assert {:reply, :ok, new_state, {:continue, :produce_response}} = response
+      assert {:noreply, new_state, {:continue, :produce_response}} = response
       assert new_state.buffer == <<>>
       assert [{:ok, response_message}] = new_state.responses
       assert expected_response_message == response_message
@@ -60,10 +58,9 @@ defmodule GRPC.Client.Adapters.Mint.StreamResponseProcessTest do
       state = %{state | buffer: part1}
       expected_response_message = build(:hello_reply_rpc)
 
-      response =
-        StreamResponseProcess.handle_call({:consume_response, {:data, part2}}, self(), state)
+      response = StreamResponseProcess.handle_cast({:consume_response, {:data, part2}}, state)
 
-      assert {:reply, :ok, new_state, {:continue, :produce_response}} = response
+      assert {:noreply, new_state, {:continue, :produce_response}} = response
       assert new_state.buffer == <<>>
       assert [{:ok, response_message}] = new_state.responses
       assert expected_response_message == response_message
@@ -74,10 +71,9 @@ defmodule GRPC.Client.Adapters.Mint.StreamResponseProcessTest do
       data = full <> extra_data
       expected_response_message = build(:hello_reply_rpc)
 
-      response =
-        StreamResponseProcess.handle_call({:consume_response, {:data, data}}, self(), state)
+      response = StreamResponseProcess.handle_cast({:consume_response, {:data, data}}, state)
 
-      assert {:reply, :ok, new_state, {:continue, :produce_response}} = response
+      assert {:noreply, new_state, {:continue, :produce_response}} = response
       assert new_state.buffer == extra_data
       assert [{:ok, response_message}] = new_state.responses
       assert expected_response_message == response_message
@@ -100,13 +96,12 @@ defmodule GRPC.Client.Adapters.Mint.StreamResponseProcessTest do
         ]
 
         response =
-          StreamResponseProcess.handle_call(
+          StreamResponseProcess.handle_cast(
             {:consume_response, {type, headers}},
-            self(),
             state
           )
 
-        assert {:reply, :ok, new_state, {:continue, :produce_response}} = response
+        assert {:noreply, new_state, {:continue, :produce_response}} = response
         assert [{:error, error}] = new_state.responses
         assert %GRPC.RPCError{message: "Internal Server Error", status: 2} == error
       end,
@@ -133,13 +128,12 @@ defmodule GRPC.Client.Adapters.Mint.StreamResponseProcessTest do
         ]
 
         response =
-          StreamResponseProcess.handle_call(
+          StreamResponseProcess.handle_cast(
             {:consume_response, {type, headers}},
-            self(),
             state
           )
 
-        assert {:reply, :ok, new_state, {:continue, :produce_response}} = response
+        assert {:noreply, new_state, {:continue, :produce_response}} = response
         assert [{type_response, response_headers}] = new_state.responses
         assert type == type_response
 
@@ -167,13 +161,12 @@ defmodule GRPC.Client.Adapters.Mint.StreamResponseProcessTest do
         ]
 
         response =
-          StreamResponseProcess.handle_call(
+          StreamResponseProcess.handle_cast(
             {:consume_response, {type, headers}},
-            self(),
             state
           )
 
-        assert {:reply, :ok, new_state, {:continue, :produce_response}} = response
+        assert {:noreply, new_state, {:continue, :produce_response}} = response
         assert [] == new_state.responses
       end,
       do: [{:headers}, {:trailers}]
@@ -192,13 +185,12 @@ defmodule GRPC.Client.Adapters.Mint.StreamResponseProcessTest do
       ]
 
       response =
-        StreamResponseProcess.handle_call(
+        StreamResponseProcess.handle_cast(
           {:consume_response, {:headers, headers}},
-          self(),
           state
         )
 
-      assert {:reply, :ok, new_state, {:continue, :produce_response}} = response
+      assert {:noreply, new_state, {:continue, :produce_response}} = response
       assert GRPC.Compressor.Gzip == new_state.compressor
     end
 
@@ -215,13 +207,12 @@ defmodule GRPC.Client.Adapters.Mint.StreamResponseProcessTest do
       ]
 
       response =
-        StreamResponseProcess.handle_call(
+        StreamResponseProcess.handle_cast(
           {:consume_response, {:headers, headers}},
-          self(),
           state
         )
 
-      assert {:reply, :ok, new_state, {:continue, :produce_response}} = response
+      assert {:noreply, new_state, {:continue, :produce_response}} = response
       assert nil == new_state.compressor
     end
   end
@@ -231,13 +222,12 @@ defmodule GRPC.Client.Adapters.Mint.StreamResponseProcessTest do
       error = {:error, "howdy"}
 
       response =
-        StreamResponseProcess.handle_call(
+        StreamResponseProcess.handle_cast(
           {:consume_response, error},
-          self(),
           state
         )
 
-      assert {:reply, :ok, new_state, {:continue, :produce_response}} = response
+      assert {:noreply, new_state, {:continue, :produce_response}} = response
       assert [response_error] = new_state.responses
       assert response_error == error
     end
@@ -246,13 +236,12 @@ defmodule GRPC.Client.Adapters.Mint.StreamResponseProcessTest do
   describe "handle_call/3 - done" do
     test "set state to done", %{state: state} do
       response =
-        StreamResponseProcess.handle_call(
+        StreamResponseProcess.handle_cast(
           {:consume_response, :done},
-          self(),
           state
         )
 
-      assert {:reply, :ok, new_state, {:continue, :produce_response}} = response
+      assert {:noreply, new_state, {:continue, :produce_response}} = response
       assert true == new_state.done
     end
   end
