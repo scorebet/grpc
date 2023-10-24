@@ -24,7 +24,8 @@ defmodule GRPC.Server.Supervisor do
   @type sup_flags() :: %{
           strategy: Supervisor.strategy(),
           intensity: non_neg_integer(),
-          period: pos_integer()
+          period: pos_integer(),
+          auto_shutdown: :never | :any_significant | :all_significant
         }
 
   @default_adapter GRPC.Server.Adapters.Cowboy
@@ -44,7 +45,7 @@ defmodule GRPC.Server.Supervisor do
   Either `:endpoint` or `:servers` must be present, but not both.
   """
   @spec init(tuple()) :: no_return
-  @spec init(keyword()) :: {:ok, {sup_flags(), [Supervisor.child_spec()]}} | :ignore
+  @spec init(keyword()) :: {:ok, {sup_flags(), [Supervisor.child_spec()]}}
   def init(opts)
 
   def init(opts) when is_tuple(opts) do
