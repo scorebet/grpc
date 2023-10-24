@@ -34,13 +34,27 @@ jobs:
     name: OTP ${{matrix.otp}} / Elixir ${{matrix.elixir}}
     strategy:
       matrix:
-        otp: [22.x, 23.x, 24.x, 25.x]
-        elixir: [1.11.x, 1.12.x, 1.13.x]
+        otp: [22.x, 23.x, 24.x, 25.x, 26.x]
+        elixir: [1.11.x, 1.12.x, 1.13.x, 1.14.x, 1.15.x]
         exclude:
+          - otp: 22.x
+            elixir: 1.14.x
+          - otp: 22.x
+            elixir: 1.15.x
+          - otp: 23.x
+            elixir: 1.14.x
+          - otp: 23.x
+            elixir: 1.15.x
           - otp: 25.x
             elixir: 1.11.x
           - otp: 25.x
             elixir: 1.12.x
+          - otp: 26.x
+            elixir: 1.11.x
+          - otp: 26.x
+            elixir: 1.12.x
+          - otp: 26.x
+            elixir: 1.13.x
     needs: check_format
     steps:
       - uses: actions/checkout@v3
@@ -90,13 +104,27 @@ jobs:
     if: ${{ github.ref == 'refs/heads/master' }}
     strategy:
       matrix:
-        otp: [22.x, 23.x, 24.x, 25.x]
-        elixir: [1.11.x, 1.12.x, 1.13.x]
+        otp: [22.x, 23.x, 24.x, 25.x, 26.x]
+        elixir: [1.11.x, 1.12.x, 1.13.x, 1.14.x, 1.15.x]
         exclude:
+          - otp: 22.x
+            elixir: 1.14.x
+          - otp: 22.x
+            elixir: 1.15.x
+          - otp: 23.x
+            elixir: 1.14.x
+          - otp: 23.x
+            elixir: 1.15.x
           - otp: 25.x
             elixir: 1.11.x
           - otp: 25.x
             elixir: 1.12.x
+          - otp: 26.x
+            elixir: 1.11.x
+          - otp: 26.x
+            elixir: 1.12.x
+          - otp: 26.x
+            elixir: 1.13.x
     steps:
       - uses: actions/checkout@v3
       - uses: erlef/setup-beam@v1
@@ -121,8 +149,8 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        otp: [24.x, 25.x]
-        elixir: [1.13.x]
+        otp: [24.x, 25.x, 26.x]
+        elixir: [1.15.x]
     env:
       MIX_ENV: test
     steps:
