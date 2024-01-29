@@ -80,4 +80,23 @@ defmodule GRPC.Integration.TestCase do
       :error_logger.delete_report_handler(ErrorHandler)
     end)
   end
+
+  def attach_events(event_names) do
+    test_pid = self()
+
+    handler_id = "handler-#{inspect(test_pid)}"
+
+    :telemetry.attach_many(
+      handler_id,
+      event_names,
+      fn name, measurements, metadata, [] ->
+        send(test_pid, {name, measurements, metadata})
+      end,
+      []
+    )
+
+    on_exit(fn ->
+      :telemetry.detach(handler_id)
+    end)
+  end
 end

@@ -11,17 +11,11 @@ An Elixir implementation of [gRPC](http://www.grpc.io/).
 
 ## Table of contents
 
-- [Notice](#notice)
 - [Installation](#installation)
 - [Usage](#usage)
 - [Features](#features)
 - [Benchmark](#benchmark)
 - [Contributing](#contributing)
-
-## Notice
-> __Note__
-> The [Gun](https://github.com/ninenines/gun) library doesn't have a full 2.0 release yet, so we depend on `:grcp_gun 2.0.1` for now.
-This is the same as `:gun 2.0.0-rc.2`, but [Hex](https://hex.pm/) doesn't let us depend on RC versions for releases.
 
 ## Installation
 
@@ -30,7 +24,7 @@ The package can be installed as:
   ```elixir
   def deps do
     [
-      {:grpc, "~> 0.5.0"},
+      {:grpc, "~> 0.7"},
       # We don't force protobuf as a dependency for more
       # flexibility on which protobuf library is used,
       # but you probably want to use it as well
