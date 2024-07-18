@@ -46,7 +46,7 @@ defmodule GRPC.Server do
       codecs = opts[:codecs] || [GRPC.Codec.Proto, GRPC.Codec.WebText]
       compressors = opts[:compressors] || []
 
-      Enum.each(service_mod.__rpc_calls__, fn {name, _, _} = rpc ->
+      Enum.each(service_mod.__rpc_calls__(), fn {name, _, _} = rpc ->
         func_name = name |> to_string |> Macro.underscore() |> String.to_atom()
         path = "/#{service_name}/#{name}"
         grpc_type = GRPC.Service.grpc_type(rpc)
