@@ -35,7 +35,6 @@ defmodule Transcode.Messaging.Service do
     http: %{
       type: Google.Api.PbExtension,
       value: %Google.Api.HttpRule{
-        __unknown_fields__: [],
         additional_bindings: [],
         body: "",
         pattern: {:get, "/v1/messages/{name}"},
@@ -49,7 +48,6 @@ defmodule Transcode.Messaging.Service do
     http: %{
       type: Google.Api.PbExtension,
       value: %Google.Api.HttpRule{
-        __unknown_fields__: [],
         additional_bindings: [],
         body: "",
         pattern: {:get, "/v1/messages/stream/{name}"},
@@ -63,7 +61,6 @@ defmodule Transcode.Messaging.Service do
     http: %{
       type: Google.Api.PbExtension,
       value: %Google.Api.HttpRule{
-        __unknown_fields__: [],
         additional_bindings: [],
         body: "",
         pattern: {:get, "/v1/{name=}"},
@@ -77,7 +74,6 @@ defmodule Transcode.Messaging.Service do
     http: %{
       type: Google.Api.PbExtension,
       value: %Google.Api.HttpRule{
-        __unknown_fields__: [],
         additional_bindings: [],
         body: "",
         pattern: {:get, "/v1/messages"},
@@ -91,7 +87,6 @@ defmodule Transcode.Messaging.Service do
     http: %{
       type: Google.Api.PbExtension,
       value: %Google.Api.HttpRule{
-        __unknown_fields__: [],
         additional_bindings: [],
         body: "",
         pattern: {:get, "/v1/messages/fieldpath/{message.name}"},
@@ -105,7 +100,6 @@ defmodule Transcode.Messaging.Service do
     http: %{
       type: Google.Api.PbExtension,
       value: %Google.Api.HttpRule{
-        __unknown_fields__: [],
         additional_bindings: [],
         body: "*",
         pattern: {:post, "/v1/messages"},
@@ -119,7 +113,6 @@ defmodule Transcode.Messaging.Service do
     http: %{
       type: Google.Api.PbExtension,
       value: %Google.Api.HttpRule{
-        __unknown_fields__: [],
         additional_bindings: [],
         body: "",
         pattern: {:get, "/v1/messages/response_body/{name}"},
@@ -133,7 +126,6 @@ defmodule Transcode.Messaging.Service do
     http: %{
       type: Google.Api.PbExtension,
       value: %Google.Api.HttpRule{
-        __unknown_fields__: [],
         additional_bindings: [],
         body: "message",
         pattern: {:post, "/v1/messages/nested"},
@@ -147,7 +139,6 @@ defmodule Transcode.Messaging.Service do
     http: %{
       type: Google.Api.PbExtension,
       value: %Google.Api.HttpRule{
-        __unknown_fields__: [],
         additional_bindings: [],
         body: "",
         pattern: {:get, "/v1/messages/nested"},

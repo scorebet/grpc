@@ -1,7 +1,14 @@
 defmodule Google.Api.Http do
   @moduledoc false
+  use Protobuf, syntax: :proto3
 
-  use Protobuf, protoc_gen_elixir_version: "0.11.0", syntax: :proto3
+  @type t :: %__MODULE__{
+          rules: [Google.Api.HttpRule.t()],
+          fully_decode_reserved_expansion: boolean
+        }
+
+  defstruct rules: [],
+            fully_decode_reserved_expansion: false
 
   field :rules, 1, repeated: true, type: Google.Api.HttpRule
 
@@ -9,11 +16,29 @@ defmodule Google.Api.Http do
     type: :bool,
     json_name: "fullyDecodeReservedExpansion"
 end
-
 defmodule Google.Api.HttpRule do
   @moduledoc false
+  use Protobuf, syntax: :proto3
 
-  use Protobuf, protoc_gen_elixir_version: "0.11.0", syntax: :proto3
+  @type t :: %__MODULE__{
+          pattern:
+            {:get, String.t()}
+            | {:put, String.t()}
+            | {:post, String.t()}
+            | {:delete, String.t()}
+            | {:patch, String.t()}
+            | {:custom, Google.Api.CustomHttpPattern.t() | nil},
+          selector: String.t(),
+          body: String.t(),
+          response_body: String.t(),
+          additional_bindings: [Google.Api.HttpRule.t()]
+        }
+
+  defstruct pattern: nil,
+            selector: "",
+            body: "",
+            response_body: "",
+            additional_bindings: []
 
   oneof :pattern, 0
 
@@ -32,11 +57,17 @@ defmodule Google.Api.HttpRule do
     type: Google.Api.HttpRule,
     json_name: "additionalBindings"
 end
-
 defmodule Google.Api.CustomHttpPattern do
   @moduledoc false
+  use Protobuf, syntax: :proto3
 
-  use Protobuf, protoc_gen_elixir_version: "0.11.0", syntax: :proto3
+  @type t :: %__MODULE__{
+          kind: String.t(),
+          path: String.t()
+        }
+
+  defstruct kind: "",
+            path: ""
 
   field :kind, 1, type: :string
   field :path, 2, type: :string
