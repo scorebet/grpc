@@ -12,6 +12,11 @@ defmodule GRPC.Transport.HTTP2 do
     %{"content-type" => "application/grpc-web-#{codec.name()}"}
   end
 
+  # TO-DO: refactor when we add a GRPC.Codec.content_type callback
+  def server_headers(%{codec: GRPC.Codec.JSON}) do
+    %{"content-type" => "application/json"}
+  end
+
   def server_headers(%{codec: codec}) do
     %{"content-type" => "application/grpc+#{codec.name()}"}
   end
@@ -93,7 +98,7 @@ defmodule GRPC.Transport.HTTP2 do
   end
 
   defp append_encoding(headers, grpc_encoding) when is_binary(grpc_encoding) do
-    Logger.warn("grpc_encoding option is deprecated, please use compressor.")
+    Logger.warning("grpc_encoding option is deprecated, please use compressor.")
     [{"grpc-encoding", grpc_encoding} | headers]
   end
 
